@@ -1,1 +1,5 @@
-// Structure placeholder. Implementation will be added later.
+export enum TaskPriority {
+	LOW = 'low',
+	MEDIUM = 'medium',
+	HIGH = 'high',
+}

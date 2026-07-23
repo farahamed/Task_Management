@@ -1,1 +1,4 @@
-// Structure placeholder. Implementation will be added later.
+export enum SortOrder {
+	ASC = 'asc',
+	DESC = 'desc',
+}

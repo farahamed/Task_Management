@@ -15,6 +15,19 @@ describe('CreateTaskDto', () => {
 		await expect(validate(dto)).resolves.toHaveLength(0);
 	});
 
+	it('rejects a past due date', async () => {
+		const dto = plainToInstance(CreateTaskDto, {
+			title: 'Implement JWT',
+			description: 'Use Passport JWT',
+			priority: 'high',
+			status: 'todo',
+			due_date: '2020-01-01',
+		});
+
+		const errors = await validate(dto);
+		expect(errors.some((error) => error.property === 'due_date')).toBe(true);
+	});
+
 	it('rejects missing title', async () => {
 		const dto = plainToInstance(CreateTaskDto, {
 			priority: 'high',
