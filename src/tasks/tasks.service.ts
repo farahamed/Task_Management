@@ -117,19 +117,27 @@ export class TasksService {
 		await this.projectsService.findOne(userId, projectId);
 
 		const where: Prisma.TaskWhereInput = {
-			projectId,
-			deletedAt: null,
-			...(query.status ? { status: this.mapStatus(query.status) } : {}),
-			...(query.priority ? { priority: this.mapPriority(query.priority) } : {}),
-			...(query.due_date_from || query.due_date_to
-				? {
-					dueDate: {
-						...(query.due_date_from ? { gte: query.due_date_from } : {}),
-						...(query.due_date_to ? { lte: query.due_date_to } : {}),
-					},
-				}
-				: {}),
-		};
+            projectId,
+            deletedAt: null,
+            ...(query.status ? { status: this.mapStatus(query.status) } : {}),
+            ...(query.priority ? { priority: this.mapPriority(query.priority) } : {}),
+            ...(query.due_date_from || query.due_date_to
+                ? {
+                    dueDate: {
+                        ...(query.due_date_from ? { gte: query.due_date_from } : {}),
+                        ...(query.due_date_to ? { lte: query.due_date_to } : {}),
+                    },
+                }
+                : {}),
+            ...(query.q?.trim()
+                ? {
+                    OR: [
+                        { title: { contains: query.q.trim(), mode: 'insensitive' } },
+                        { description: { contains: query.q.trim(), mode: 'insensitive' } },
+                    ],
+                }
+                : {}),
+};
 
 		const [total, tasks] = await this.prisma.$transaction([
 			this.prisma.task.count({ where }),
