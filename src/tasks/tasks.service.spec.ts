@@ -228,4 +228,53 @@ describe('TasksService', () => {
 
 		expect(loggerWarnSpy).toHaveBeenCalled();
 	});
+
+	it('soft deletes a task for the owner', async () => {
+		prisma.task.findUnique.mockResolvedValue({
+			id: 'task-1',
+			title: 'Implement JWT',
+			description: 'Use Passport JWT',
+			status: TaskStatus.TODO,
+			priority: TaskPriority.HIGH,
+			dueDate: new Date('2026-08-01'),
+			deletedAt: null,
+			project: {
+				id: 'project-1',
+				name: 'Backend Internship',
+				userId: 'user-1',
+				deletedAt: null,
+			},
+		});
+		prisma.task.update.mockResolvedValue({ id: 'task-1' });
+
+		await expect(service.remove('user-1', 'task-1')).resolves.toEqual({
+			message: 'Task deleted successfully.',
+		});
+	});
+
+	it('throws not found when task is missing or deleted', async () => {
+		prisma.task.findUnique.mockResolvedValue(null);
+
+		await expect(service.remove('user-1', 'task-1')).rejects.toBeInstanceOf(NotFoundException);
+	});
+
+	it('throws forbidden for another user on delete', async () => {
+		prisma.task.findUnique.mockResolvedValue({
+			id: 'task-1',
+			title: 'Implement JWT',
+			description: 'Use Passport JWT',
+			status: TaskStatus.TODO,
+			priority: TaskPriority.HIGH,
+			dueDate: new Date('2026-08-01'),
+			deletedAt: null,
+			project: {
+				id: 'project-1',
+				name: 'Backend Internship',
+				userId: 'user-2',
+				deletedAt: null,
+			},
+		});
+
+		await expect(service.remove('user-1', 'task-1')).rejects.toBeInstanceOf(ForbiddenException);
+	});
 });

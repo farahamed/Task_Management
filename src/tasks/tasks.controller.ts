@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBadRequestResponse, ApiBody, ApiCreatedResponse, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { CreateTaskDto } from './dto/create-task.dto';
+import { DeleteTaskResponseDto } from './dto/delete-task-response.dto';
 import { CreateTaskResponseDto } from './dto/create-task-response.dto';
 import { TaskQueryDto } from './dto/task-query.dto';
 import { TaskResponseDto } from './dto/task-response.dto';
@@ -69,5 +70,16 @@ export class TasksController {
 	@ApiForbiddenResponse({ description: 'Task belongs to another user.' })
 	update(@CurrentUser('sub') userId: string, @Param('id') id: string, @Body() dto: UpdateTaskDto) {
 		return this.tasksService.update(userId, id, dto);
+	}
+
+	@Delete('tasks/:id')
+	@ApiOperation({ summary: 'Delete task', description: 'Soft deletes a task owned by the authenticated user.' })
+	@ApiParam({ name: 'id', example: 'uuid' })
+	@ApiOkResponse({ type: DeleteTaskResponseDto, description: 'Task deleted successfully.' })
+	@ApiBadRequestResponse({ description: 'Validation failed.' })
+	@ApiNotFoundResponse({ description: 'Task not found.' })
+	@ApiForbiddenResponse({ description: 'Task belongs to another user.' })
+	remove(@CurrentUser('sub') userId: string, @Param('id') id: string) {
+		return this.tasksService.remove(userId, id);
 	}
 }

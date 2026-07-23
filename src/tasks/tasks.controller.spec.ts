@@ -4,7 +4,7 @@ import { TasksService } from './tasks.service';
 
 describe('TasksController', () => {
 	let controller: TasksController;
-	let tasksService: jest.Mocked<Pick<TasksService, 'create' | 'findByProject' | 'findOne' | 'update'>>;
+	let tasksService: jest.Mocked<Pick<TasksService, 'create' | 'findByProject' | 'findOne' | 'update' | 'remove'>>;
 
 	beforeEach(async () => {
 		tasksService = {
@@ -12,6 +12,7 @@ describe('TasksController', () => {
 			findByProject: jest.fn(),
 			findOne: jest.fn(),
 			update: jest.fn(),
+			remove: jest.fn(),
 		};
 
 		const moduleRef = await Test.createTestingModule({
@@ -117,6 +118,14 @@ describe('TasksController', () => {
 			priority: 'medium',
 			due_date: new Date('2026-08-10'),
 			project: { id: 'project-1', name: 'Backend Internship' },
+		});
+	});
+
+	it('delegates task delete to service', async () => {
+		tasksService.remove.mockResolvedValue({ message: 'Task deleted successfully.' });
+
+		await expect(controller.remove('user-1', 'task-1')).resolves.toEqual({
+			message: 'Task deleted successfully.',
 		});
 	});
 });

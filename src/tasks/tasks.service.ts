@@ -203,6 +203,40 @@ export class TasksService {
 		};
 	}
 
+	async remove(userId: string, taskId: string): Promise<{ message: string }> {
+		const task = await this.prisma.task.findUnique({
+			where: { id: taskId },
+			include: {
+				project: {
+					select: {
+						id: true,
+						userId: true,
+						deletedAt: true,
+					},
+				},
+			},
+		});
+
+		if (!task || task.deletedAt || task.project.deletedAt) {
+			throw new NotFoundException('Task not found');
+		}
+
+		if (task.project.userId !== userId) {
+			throw new ForbiddenException('Task belongs to another user');
+		}
+
+		await this.prisma.task.update({
+			where: { id: taskId },
+			data: {
+				deletedAt: new Date(),
+			},
+		});
+
+		return {
+			message: 'Task deleted successfully.',
+		};
+	}
+
 	private mapStatus(status: CreateTaskDto['status'] | TaskQueryDto['status']): PrismaTaskStatus {
 		switch (status) {
 			case 'in_progress':
