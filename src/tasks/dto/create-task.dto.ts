@@ -27,15 +27,14 @@ export class CreateTaskDto {
 	@Length(0, 2000)
 	description?: string;
 
+    @ApiPropertyOptional({ enum: CreateTaskPriority, default: CreateTaskPriority.MEDIUM })
     @IsOptional()
-	@ApiProperty({ enum: CreateTaskPriority, example: CreateTaskPriority.HIGH })
-	@IsEnum(CreateTaskPriority)
-	priority!: CreateTaskPriority;
-
+    @IsEnum(CreateTaskPriority)
+    priority?: CreateTaskPriority;
+    @ApiPropertyOptional({ enum: CreateTaskStatus, default: CreateTaskStatus.TODO })
     @IsOptional()
-	@ApiProperty({ enum: CreateTaskStatus, example: CreateTaskStatus.TODO })
-	@IsEnum(CreateTaskStatus)
-	status!: CreateTaskStatus;
+    @IsEnum(CreateTaskStatus)
+    status?: CreateTaskStatus;
 
 	@ApiPropertyOptional({ example: '2026-08-01' })
 	@IsOptional()

@@ -12,4 +12,4 @@ export class CreateProjectDto {
 	@IsString()
 	@Length(0, 1000)
 	description?: string;
-}// Structure placeholder. Implementation will be added later.
+}
