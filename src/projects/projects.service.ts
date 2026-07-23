@@ -1,5 +1,6 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 
@@ -30,5 +31,39 @@ export class ProjectsService {
 
 			throw error;
 		}
+	}
+
+	async findAll(userId: string, query: PaginationQueryDto): Promise<{
+		data: Array<{ id: string; name: string }>;
+		pagination: { page: number; limit: number; total: number; totalPages: number };
+	}> {
+		const where = {
+			userId,
+			deletedAt: null,
+		};
+
+		const [total, projects] = await this.prisma.$transaction([
+			this.prisma.project.count({ where }),
+			this.prisma.project.findMany({
+				where,
+				select: {
+					id: true,
+					name: true,
+				},
+				orderBy: { createdAt: 'desc' },
+				skip: (query.page - 1) * query.limit,
+				take: query.limit,
+			}),
+		]);
+
+		return {
+			data: projects,
+			pagination: {
+				page: query.page,
+				limit: query.limit,
+				total,
+				totalPages: Math.max(1, Math.ceil(total / query.limit)),
+			},
+		};
 	}
 }
