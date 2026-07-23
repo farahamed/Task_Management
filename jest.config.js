@@ -4,7 +4,7 @@ module.exports = {
 	moduleFileExtensions: ['js', 'json', 'ts'],
 	roots: ['<rootDir>/src'],
 	testRegex: '.*\\.spec\\.ts$',
-	collectCoverageFrom: ['src/auth/**/*.ts', 'src/projects/**/*.ts'],
+	collectCoverageFrom: ['src/auth/**/*.ts', 'src/projects/**/*.ts', 'src/tasks/**/*.ts'],
 	transform: {
 		'^.+\\.(t|j)s$': 'ts-jest',
 	},
