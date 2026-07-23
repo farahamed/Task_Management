@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -7,6 +7,8 @@ import { UpdateProjectDto } from './dto/update-project.dto';
 
 @Injectable()
 export class ProjectsService {
+	private readonly logger = new Logger(ProjectsService.name);
+
 	constructor(private readonly prisma: PrismaService) {}
 
 	async create(userId: string, dto: CreateProjectDto): Promise<{ id: string; name: string; description: string | null; created_at: Date }> {
@@ -125,6 +127,44 @@ export class ProjectsService {
 			name: updatedProject.name,
 			description: updatedProject.description,
 			created_at: updatedProject.createdAt,
+		};
+	}
+
+	async remove(userId: string, projectId: string): Promise<{ message: string }> {
+		const project = await this.prisma.project.findUnique({
+			where: { id: projectId },
+		});
+
+		if (!project || project.deletedAt) {
+			throw new NotFoundException('Project not found');
+		}
+
+		if (project.userId !== userId) {
+			throw new ForbiddenException('Project belongs to another user');
+		}
+
+		await this.prisma.$transaction([
+			this.prisma.task.updateMany({
+				where: {
+					projectId,
+					deletedAt: null,
+				},
+				data: {
+					deletedAt: new Date(),
+				},
+			}),
+			this.prisma.project.update({
+				where: { id: projectId },
+				data: {
+					deletedAt: new Date(),
+				},
+			}),
+		]);
+
+		this.logger.log(`Project ${projectId} deleted by user ${userId}`);
+
+		return {
+			message: 'Project deleted successfully.',
 		};
 	}
 }

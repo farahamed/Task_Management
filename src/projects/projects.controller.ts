@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBadRequestResponse, ApiBody, ApiConflictResponse, ApiCreatedResponse, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -70,5 +70,21 @@ export class ProjectsController {
 	@ApiForbiddenResponse({ description: 'Project belongs to another user.' })
 	update(@CurrentUser('sub') userId: string, @Param('id') id: string, @Body() dto: UpdateProjectDto) {
 		return this.projectsService.update(userId, id, dto);
+	}
+
+	@Delete(':id')
+	@ApiOperation({ summary: 'Delete project', description: 'Soft deletes a project and all related tasks.' })
+	@ApiOkResponse({
+		schema: {
+			example: {
+				message: 'Project deleted successfully.',
+			},
+		},
+	})
+	@ApiBadRequestResponse({ description: 'Validation failed.' })
+	@ApiNotFoundResponse({ description: 'Project not found.' })
+	@ApiForbiddenResponse({ description: 'Project belongs to another user.' })
+	remove(@CurrentUser('sub') userId: string, @Param('id') id: string) {
+		return this.projectsService.remove(userId, id);
 	}
 }
