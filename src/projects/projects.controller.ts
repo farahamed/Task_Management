@@ -1,10 +1,11 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBadRequestResponse, ApiBody, ApiConflictResponse, ApiCreatedResponse, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { ProjectResponseDto } from './dto/project-response.dto';
+import { UpdateProjectDto } from './dto/update-project.dto';
 import { ProjectsService } from './projects.service';
 
 @ApiTags('projects')
@@ -58,5 +59,16 @@ export class ProjectsController {
 	@ApiForbiddenResponse({ description: 'Project belongs to another user.' })
 	getProject(@CurrentUser('sub') userId: string, @Param('id') id: string) {
 		return this.projectsService.findOne(userId, id);
+	}
+
+	@Put(':id')
+	@ApiOperation({ summary: 'Update project', description: 'Updates an existing project owned by the authenticated user.' })
+	@ApiBody({ type: UpdateProjectDto })
+	@ApiOkResponse({ type: ProjectResponseDto, description: 'Project updated successfully.' })
+	@ApiBadRequestResponse({ description: 'Validation failed.' })
+	@ApiNotFoundResponse({ description: 'Project not found.' })
+	@ApiForbiddenResponse({ description: 'Project belongs to another user.' })
+	update(@CurrentUser('sub') userId: string, @Param('id') id: string, @Body() dto: UpdateProjectDto) {
+		return this.projectsService.update(userId, id, dto);
 	}
 }

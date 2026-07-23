@@ -3,6 +3,7 @@ import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
+import { UpdateProjectDto } from './dto/update-project.dto';
 
 @Injectable()
 export class ProjectsService {
@@ -90,6 +91,40 @@ export class ProjectsService {
 			name: project.name,
 			description: project.description,
 			created_at: project.createdAt,
+		};
+	}
+
+	async update(userId: string, projectId: string, dto: UpdateProjectDto): Promise<{
+		id: string;
+		name: string;
+		description: string | null;
+		created_at: Date;
+	}> {
+		const project = await this.prisma.project.findUnique({
+			where: { id: projectId },
+		});
+
+		if (!project || project.deletedAt) {
+			throw new NotFoundException('Project not found');
+		}
+
+		if (project.userId !== userId) {
+			throw new ForbiddenException('Project belongs to another user');
+		}
+
+		const updatedProject = await this.prisma.project.update({
+			where: { id: projectId },
+			data: {
+				name: dto.name,
+				description: dto.description,
+			},
+		});
+
+		return {
+			id: updatedProject.id,
+			name: updatedProject.name,
+			description: updatedProject.description,
+			created_at: updatedProject.createdAt,
 		};
 	}
 }
