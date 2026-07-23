@@ -37,6 +37,79 @@ export class TasksService {
 		};
 	}
 
+	async findAll(userId: string, query: TaskQueryDto): Promise<{
+		data: Array<{ id: string; title: string; status: string; priority: string; project: { id: string; name: string } }>;
+		pagination: { page: number; limit: number; total: number; totalPages: number };
+	}> {
+		const search = query.q?.trim();
+		const where: Prisma.TaskWhereInput = {
+			deletedAt: null,
+			project: {
+				userId,
+				deletedAt: null,
+			},
+			...(query.status ? { status: this.mapStatus(query.status) } : {}),
+			...(query.priority ? { priority: this.mapPriority(query.priority) } : {}),
+			...(query.due_date_from || query.due_date_to
+				? {
+					dueDate: {
+						...(query.due_date_from ? { gte: query.due_date_from } : {}),
+						...(query.due_date_to ? { lte: query.due_date_to } : {}),
+					},
+				}
+				: {}),
+			...(search
+				? {
+					OR: [
+						{ title: { contains: search, mode: 'insensitive' } },
+						{ description: { contains: search, mode: 'insensitive' } },
+					],
+				}
+				: {}),
+		};
+
+		const [total, tasks] = await this.prisma.$transaction([
+			this.prisma.task.count({ where }),
+			this.prisma.task.findMany({
+				where,
+				select: {
+					id: true,
+					title: true,
+					status: true,
+					priority: true,
+					project: {
+						select: {
+							id: true,
+							name: true,
+						},
+					},
+				},
+				orderBy: this.mapOrder(query.sort, query.order),
+				skip: (query.page - 1) * query.limit,
+				take: query.limit,
+			}),
+		]);
+
+		return {
+			data: tasks.map((task) => ({
+				id: task.id,
+				title: task.title,
+				status: task.status.toLowerCase(),
+				priority: task.priority.toLowerCase(),
+				project: {
+					id: task.project.id,
+					name: task.project.name,
+				},
+			})),
+			pagination: {
+				page: query.page,
+				limit: query.limit,
+				total,
+				totalPages: Math.max(1, Math.ceil(total / query.limit)),
+			},
+		};
+	}
+
 	async findByProject(userId: string, projectId: string, query: TaskQueryDto): Promise<{
 		data: Array<{ id: string; title: string; status: string; priority: string }>;
 		pagination: { page: number; limit: number; total: number; totalPages: number };

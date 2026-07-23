@@ -4,11 +4,12 @@ import { TasksService } from './tasks.service';
 
 describe('TasksController', () => {
 	let controller: TasksController;
-	let tasksService: jest.Mocked<Pick<TasksService, 'create' | 'findByProject' | 'findOne' | 'update' | 'remove'>>;
+	let tasksService: jest.Mocked<Pick<TasksService, 'create' | 'findAll' | 'findByProject' | 'findOne' | 'update' | 'remove'>>;
 
 	beforeEach(async () => {
 		tasksService = {
 			create: jest.fn(),
+			findAll: jest.fn(),
 			findByProject: jest.fn(),
 			findOne: jest.fn(),
 			update: jest.fn(),
@@ -66,6 +67,30 @@ describe('TasksController', () => {
 			}),
 		).resolves.toEqual({
 			data: [{ id: 'task-1', title: 'Implement JWT', status: 'todo', priority: 'high' }],
+			pagination: { page: 1, limit: 10, total: 1, totalPages: 1 },
+		});
+	});
+
+	it('delegates global task listing to service', async () => {
+		tasksService.findAll.mockResolvedValue({
+			data: [{ id: 'task-1', title: 'Implement JWT', status: 'todo', priority: 'high', project: { id: 'project-1', name: 'Backend Internship' } }],
+			pagination: { page: 1, limit: 10, total: 1, totalPages: 1 },
+		});
+
+		await expect(
+			controller.getTasks('user-1', {
+				page: 1,
+				limit: 10,
+				q: 'jwt',
+				status: 'todo' as never,
+				priority: 'high' as never,
+				due_date_from: undefined,
+				due_date_to: undefined,
+				sort: 'created_at' as never,
+				order: 'desc' as never,
+			}),
+		).resolves.toEqual({
+			data: [{ id: 'task-1', title: 'Implement JWT', status: 'todo', priority: 'high', project: { id: 'project-1', name: 'Backend Internship' } }],
 			pagination: { page: 1, limit: 10, total: 1, totalPages: 1 },
 		});
 	});

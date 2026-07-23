@@ -8,6 +8,7 @@ import { CreateTaskResponseDto } from './dto/create-task-response.dto';
 import { TaskQueryDto } from './dto/task-query.dto';
 import { TaskResponseDto } from './dto/task-response.dto';
 import { TasksPaginationResponseDto } from './dto/tasks-pagination.dto';
+import { TasksListPaginationResponseDto } from './dto/tasks-list-pagination.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { TasksService } from './tasks.service';
 
@@ -28,6 +29,23 @@ export class TasksController {
 	@ApiForbiddenResponse({ description: 'Project belongs to another user.' })
 	create(@CurrentUser('sub') userId: string, @Param('projectId') projectId: string, @Body() dto: CreateTaskDto) {
 		return this.tasksService.create(userId, projectId, dto);
+	}
+
+	@Get('tasks')
+	@ApiOperation({ summary: 'Get tasks', description: 'Returns all non-deleted tasks owned by the authenticated user.' })
+	@ApiQuery({ name: 'page', required: false, example: 1 })
+	@ApiQuery({ name: 'limit', required: false, example: 10 })
+	@ApiQuery({ name: 'q', required: false, example: 'jwt' })
+	@ApiQuery({ name: 'status', required: false, example: 'todo' })
+	@ApiQuery({ name: 'priority', required: false, example: 'high' })
+	@ApiQuery({ name: 'due_date_from', required: false, example: '2026-08-01' })
+	@ApiQuery({ name: 'due_date_to', required: false, example: '2026-08-31' })
+	@ApiQuery({ name: 'sort', required: false, example: 'created_at' })
+	@ApiQuery({ name: 'order', required: false, example: 'desc' })
+	@ApiOkResponse({ type: TasksListPaginationResponseDto, description: 'Tasks retrieved successfully.' })
+	@ApiBadRequestResponse({ description: 'Validation failed.' })
+	getTasks(@CurrentUser('sub') userId: string, @Query() query: TaskQueryDto) {
+		return this.tasksService.findAll(userId, query);
 	}
 
 	@Get('projects/:projectId/tasks')

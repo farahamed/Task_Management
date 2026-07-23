@@ -106,6 +106,48 @@ describe('TasksService', () => {
 		});
 	});
 
+	it('returns all tasks for the owner with search and project data', async () => {
+		prisma.task.count.mockResolvedValue(1);
+		prisma.task.findMany.mockResolvedValue([
+			{
+				id: 'task-1',
+				title: 'Implement JWT',
+				status: TaskStatus.TODO,
+				priority: TaskPriority.HIGH,
+				project: { id: 'project-1', name: 'Backend Internship' },
+			},
+		]);
+		prisma.$transaction.mockResolvedValue([
+			1,
+			[
+				{
+					id: 'task-1',
+					title: 'Implement JWT',
+					status: TaskStatus.TODO,
+					priority: TaskPriority.HIGH,
+					project: { id: 'project-1', name: 'Backend Internship' },
+				},
+			],
+		]);
+
+		await expect(
+			service.findAll('user-1', {
+				page: 1,
+				limit: 10,
+				q: 'jwt',
+				status: 'todo' as never,
+				priority: 'high' as never,
+				due_date_from: new Date('2026-08-01'),
+				due_date_to: new Date('2026-08-31'),
+				sort: 'created_at' as never,
+				order: 'desc' as never,
+			}),
+		).resolves.toEqual({
+			data: [{ id: 'task-1', title: 'Implement JWT', status: 'todo', priority: 'high', project: { id: 'project-1', name: 'Backend Internship' } }],
+			pagination: { page: 1, limit: 10, total: 1, totalPages: 1 },
+		});
+	});
+
 	it('returns a single task for the owner', async () => {
 		prisma.task.findUnique.mockResolvedValue({
 			id: 'task-1',

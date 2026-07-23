@@ -7,12 +7,13 @@ describe('TaskQueryDto', () => {
 		const dto = plainToInstance(TaskQueryDto, {
 			page: 1,
 			limit: 10,
+			q: 'jwt',
 			status: 'todo',
 			priority: 'high',
 			due_date_from: '2026-08-01',
 			due_date_to: '2026-08-31',
-			sort: 'due_date',
-			order: 'asc',
+			sort: 'created_at',
+			order: 'desc',
 		});
 
 		await expect(validate(dto)).resolves.toHaveLength(0);
