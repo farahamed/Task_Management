@@ -319,4 +319,234 @@ describe('TasksService', () => {
 
 		await expect(service.remove('user-1', 'task-1')).rejects.toBeInstanceOf(ForbiddenException);
 	});
+
+
+    describe('findOne additional', () => {
+	it('throws NotFoundException when task is soft deleted', async () => {
+		// Task exists in DB but deletedAt is set → should be treated as not found
+		prisma.task.findUnique.mockResolvedValue({
+			id: 'task-1',
+			title: 'Deleted Task',
+			description: null,
+			status: TaskStatus.TODO,
+			priority: TaskPriority.MEDIUM,
+			dueDate: null,
+			deletedAt: new Date(), // <── soft deleted
+			project: { id: 'project-1', name: 'Backend Internship', userId: 'user-1', deletedAt: null },
+		});
+
+		await expect(service.findOne('user-1', 'task-1')).rejects.toBeInstanceOf(NotFoundException);
+	});
+
+	it('throws NotFoundException when task belongs to a soft-deleted project', async () => {
+		prisma.task.findUnique.mockResolvedValue({
+			id: 'task-1',
+			title: 'Orphaned Task',
+			description: null,
+			status: TaskStatus.TODO,
+			priority: TaskPriority.MEDIUM,
+			dueDate: null,
+			deletedAt: null,
+			project: {
+				id: 'project-1',
+				name: 'Backend Internship',
+				userId: 'user-1',
+				deletedAt: new Date(), // <── project is deleted
+			},
+		});
+
+		await expect(service.findOne('user-1', 'task-1')).rejects.toBeInstanceOf(NotFoundException);
+	});
+});
+
+// --- update additional edge cases ---
+describe('update additional', () => {
+	it('throws NotFoundException when task does not exist', async () => {
+		prisma.task.findUnique.mockResolvedValue(null);
+
+		await expect(service.update('user-1', 'task-1', { title: 'New title' })).rejects.toBeInstanceOf(
+			NotFoundException,
+		);
+	});
+
+	it('throws NotFoundException when task is soft deleted', async () => {
+		prisma.task.findUnique.mockResolvedValue({
+			id: 'task-1',
+			title: 'Some Task',
+			description: null,
+			status: TaskStatus.TODO,
+			priority: TaskPriority.MEDIUM,
+			dueDate: null,
+			deletedAt: new Date(),
+			project: { id: 'project-1', name: 'Backend Internship', userId: 'user-1', deletedAt: null },
+		});
+
+		await expect(service.update('user-1', 'task-1', { title: 'Updated' })).rejects.toBeInstanceOf(
+			NotFoundException,
+		);
+	});
+
+	it('throws ForbiddenException when task belongs to another user\'s project', async () => {
+		prisma.task.findUnique.mockResolvedValue({
+			id: 'task-1',
+			title: 'Not My Task',
+			description: null,
+			status: TaskStatus.TODO,
+			priority: TaskPriority.MEDIUM,
+			dueDate: null,
+			deletedAt: null,
+			project: {
+				id: 'project-2',
+				name: 'Other Project',
+				userId: 'user-2', // <── different user
+				deletedAt: null,
+			},
+		});
+
+		await expect(service.update('user-1', 'task-1', { title: 'Try to update' })).rejects.toBeInstanceOf(
+			ForbiddenException,
+		);
+	});
+
+	it('does NOT warn when status transition is not done → todo', async () => {
+		// Moving from TODO → IN_PROGRESS should not trigger the warning log
+		const loggerWarnSpy = jest.spyOn(require('@nestjs/common').Logger.prototype, 'warn').mockImplementation(() => undefined);
+
+		prisma.task.findUnique.mockResolvedValue({
+			id: 'task-1',
+			title: 'Task',
+			description: null,
+			status: TaskStatus.TODO,
+			priority: TaskPriority.MEDIUM,
+			dueDate: null,
+			deletedAt: null,
+			project: { id: 'project-1', name: 'Project', userId: 'user-1', deletedAt: null },
+		});
+		prisma.task.update.mockResolvedValue({
+			id: 'task-1',
+			title: 'Task',
+			description: null,
+			status: TaskStatus.IN_PROGRESS,
+			priority: TaskPriority.MEDIUM,
+			dueDate: null,
+			project: { id: 'project-1', name: 'Project' },
+		});
+
+		await service.update('user-1', 'task-1', { status: 'in_progress' as never });
+
+		expect(loggerWarnSpy).not.toHaveBeenCalled();
+		loggerWarnSpy.mockRestore();
+	});
+});
+
+// --- remove additional edge cases ---
+describe('remove additional', () => {
+	it('throws NotFoundException when task belongs to a soft-deleted project', async () => {
+		prisma.task.findUnique.mockResolvedValue({
+			id: 'task-1',
+			title: 'Task',
+			description: null,
+			status: TaskStatus.TODO,
+			priority: TaskPriority.MEDIUM,
+			dueDate: null,
+			deletedAt: null,
+			project: { id: 'project-1', userId: 'user-1', deletedAt: new Date() },
+		});
+
+		await expect(service.remove('user-1', 'task-1')).rejects.toBeInstanceOf(NotFoundException);
+	});
+});
+
+// --- findAll additional ---
+describe('findAll additional', () => {
+	it('returns empty data array and correct pagination when no tasks exist', async () => {
+		prisma.$transaction.mockResolvedValue([0, []]);
+
+		await expect(service.findAll('user-1', { page: 1, limit: 10 })).resolves.toEqual({
+			data: [],
+			pagination: { page: 1, limit: 10, total: 0, totalPages: 1 },
+		});
+	});
+
+	it('applies search filter in the where clause when q is provided', async () => {
+		prisma.$transaction.mockImplementation(async (queries: any[]) => {
+			return Promise.all(queries.map((q: any) => q));
+		});
+		prisma.task.count.mockResolvedValue(0);
+		prisma.task.findMany.mockResolvedValue([]);
+
+		await service.findAll('user-1', {
+			page: 1,
+			limit: 10,
+			q: 'jwt',
+		} as any);
+
+		// Verify count was called with OR search conditions
+		const countCall = prisma.task.count.mock.calls[0][0];
+		expect(countCall.where).toMatchObject({
+			OR: [
+				{ title: { contains: 'jwt', mode: 'insensitive' } },
+				{ description: { contains: 'jwt', mode: 'insensitive' } },
+			],
+		});
+	});
+
+	it('trims whitespace from the search query', async () => {
+		prisma.$transaction.mockImplementation(async (queries: any[]) => Promise.all(queries.map((q: any) => q)));
+		prisma.task.count.mockResolvedValue(0);
+		prisma.task.findMany.mockResolvedValue([]);
+
+		await service.findAll('user-1', { page: 1, limit: 10, q: '  jwt  ' } as any);
+
+		const countCall = prisma.task.count.mock.calls[0][0];
+		expect(countCall.where.OR[0].title.contains).toBe('jwt');
+	});
+
+	it('omits search condition when q is empty string', async () => {
+		prisma.$transaction.mockImplementation(async (queries: any[]) => Promise.all(queries.map((q: any) => q)));
+		prisma.task.count.mockResolvedValue(0);
+		prisma.task.findMany.mockResolvedValue([]);
+
+		await service.findAll('user-1', { page: 1, limit: 10, q: '' } as any);
+
+		const countCall = prisma.task.count.mock.calls[0][0];
+		expect(countCall.where.OR).toBeUndefined();
+	});
+});
+
+// --- findByProject additional ---
+describe('findByProject additional', () => {
+	it('returns empty data array when project has no tasks', async () => {
+		projectsService.findOne.mockResolvedValue({});
+		prisma.$transaction.mockResolvedValue([0, []]);
+
+		await expect(
+			service.findByProject('user-1', 'project-1', { page: 1, limit: 10 }),
+		).resolves.toEqual({
+			data: [],
+			pagination: { page: 1, limit: 10, total: 0, totalPages: 1 },
+		});
+	});
+
+	it('applies date range filter correctly', async () => {
+		projectsService.findOne.mockResolvedValue({});
+		prisma.$transaction.mockImplementation(async (queries: any[]) => Promise.all(queries.map((q: any) => q)));
+		prisma.task.count.mockResolvedValue(0);
+		prisma.task.findMany.mockResolvedValue([]);
+
+		const from = new Date('2027-01-01');
+		const to = new Date('2027-12-31');
+
+		await service.findByProject('user-1', 'project-1', {
+			page: 1,
+			limit: 10,
+			due_date_from: from,
+			due_date_to: to,
+		} as any);
+
+		const countCall = prisma.task.count.mock.calls[0][0];
+		expect(countCall.where.dueDate).toEqual({ gte: from, lte: to });
+	});
+});
+
 });
