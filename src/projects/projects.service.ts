@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -64,6 +64,32 @@ export class ProjectsService {
 				total,
 				totalPages: Math.max(1, Math.ceil(total / query.limit)),
 			},
+		};
+	}
+
+	async findOne(userId: string, projectId: string): Promise<{
+		id: string;
+		name: string;
+		description: string | null;
+		created_at: Date;
+	}> {
+		const project = await this.prisma.project.findUnique({
+			where: { id: projectId },
+		});
+
+		if (!project || project.deletedAt) {
+			throw new NotFoundException('Project not found');
+		}
+
+		if (project.userId !== userId) {
+			throw new ForbiddenException('Project belongs to another user');
+		}
+
+		return {
+			id: project.id,
+			name: project.name,
+			description: project.description,
+			created_at: project.createdAt,
 		};
 	}
 }

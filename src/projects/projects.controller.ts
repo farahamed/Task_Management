@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiBadRequestResponse, ApiBody, ApiConflictResponse, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiBadRequestResponse, ApiBody, ApiConflictResponse, ApiCreatedResponse, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
@@ -48,5 +48,15 @@ export class ProjectsController {
 	})
 	getProjects(@CurrentUser('sub') userId: string, @Query() query: PaginationQueryDto) {
 		return this.projectsService.findAll(userId, query);
+	}
+
+	@Get(':id')
+	@ApiOperation({ summary: 'Get project', description: 'Returns a single non-deleted project owned by the authenticated user.' })
+	@ApiOkResponse({ type: ProjectResponseDto, description: 'Project retrieved successfully.' })
+	@ApiBadRequestResponse({ description: 'Validation failed.' })
+	@ApiNotFoundResponse({ description: 'Project not found.' })
+	@ApiForbiddenResponse({ description: 'Project belongs to another user.' })
+	getProject(@CurrentUser('sub') userId: string, @Param('id') id: string) {
+		return this.projectsService.findOne(userId, id);
 	}
 }
