@@ -75,8 +75,10 @@ export class TasksService {
 				select: {
 					id: true,
 					title: true,
+                    description: true,
 					status: true,
 					priority: true,
+                    dueDate: true,  
 					project: {
 						select: {
 							id: true,
@@ -94,8 +96,10 @@ export class TasksService {
 			data: tasks.map((task) => ({
 				id: task.id,
 				title: task.title,
+                description: task.description, 
 				status: task.status.toLowerCase(),
 				priority: task.priority.toLowerCase(),
+                due_date: task.dueDate, 
 				project: {
 					id: task.project.id,
 					name: task.project.name,
@@ -146,8 +150,10 @@ export class TasksService {
 				select: {
 					id: true,
 					title: true,
+                    description: true,
 					status: true,
 					priority: true,
+                    dueDate: true,
 				},
 				orderBy: this.mapOrder(query.sort, query.order),
 				skip: (query.page - 1) * query.limit,
@@ -159,8 +165,10 @@ export class TasksService {
 			data: tasks.map((task) => ({
 				id: task.id,
 				title: task.title,
+                description: task.description,
 				status: task.status.toLowerCase(),
 				priority: task.priority.toLowerCase(),
+                due_date: task.dueDate,
 			})),
 			pagination: {
 				page: query.page,
