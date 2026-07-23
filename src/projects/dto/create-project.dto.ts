@@ -1,0 +1,1 @@
+// Structure placeholder. Implementation will be added later.
