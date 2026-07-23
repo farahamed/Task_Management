@@ -1,10 +1,12 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiBadRequestResponse, ApiBody, ApiConflictResponse, ApiCreatedResponse, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBadRequestResponse, ApiBody, ApiConflictResponse, ApiCreatedResponse, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { CreateProjectDto } from './dto/create-project.dto';
+import { DeleteProjectResponseDto } from './dto/delete-project-response.dto';
 import { ProjectResponseDto } from './dto/project-response.dto';
+import { ProjectsPaginationResponseDto } from './dto/projects-pagination.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { ProjectsService } from './projects.service';
 
@@ -29,30 +31,14 @@ export class ProjectsController {
 	@ApiOperation({ summary: 'Get projects', description: 'Returns the authenticated user non-deleted projects with pagination.' })
 	@ApiQuery({ name: 'page', required: false, example: 1 })
 	@ApiQuery({ name: 'limit', required: false, example: 10 })
-	@ApiOkResponse({
-		schema: {
-			example: {
-				data: [
-					{
-						id: 'uuid',
-						name: 'Backend Internship',
-					},
-				],
-				pagination: {
-					page: 1,
-					limit: 10,
-					total: 20,
-					totalPages: 2,
-				},
-			},
-		},
-	})
+	@ApiOkResponse({ type: ProjectsPaginationResponseDto, description: 'Projects retrieved successfully.' })
 	getProjects(@CurrentUser('sub') userId: string, @Query() query: PaginationQueryDto) {
 		return this.projectsService.findAll(userId, query);
 	}
 
 	@Get(':id')
 	@ApiOperation({ summary: 'Get project', description: 'Returns a single non-deleted project owned by the authenticated user.' })
+	@ApiParam({ name: 'id', example: 'uuid' })
 	@ApiOkResponse({ type: ProjectResponseDto, description: 'Project retrieved successfully.' })
 	@ApiBadRequestResponse({ description: 'Validation failed.' })
 	@ApiNotFoundResponse({ description: 'Project not found.' })
@@ -63,6 +49,7 @@ export class ProjectsController {
 
 	@Put(':id')
 	@ApiOperation({ summary: 'Update project', description: 'Updates an existing project owned by the authenticated user.' })
+	@ApiParam({ name: 'id', example: 'uuid' })
 	@ApiBody({ type: UpdateProjectDto })
 	@ApiOkResponse({ type: ProjectResponseDto, description: 'Project updated successfully.' })
 	@ApiBadRequestResponse({ description: 'Validation failed.' })
@@ -74,13 +61,8 @@ export class ProjectsController {
 
 	@Delete(':id')
 	@ApiOperation({ summary: 'Delete project', description: 'Soft deletes a project and all related tasks.' })
-	@ApiOkResponse({
-		schema: {
-			example: {
-				message: 'Project deleted successfully.',
-			},
-		},
-	})
+	@ApiParam({ name: 'id', example: 'uuid' })
+	@ApiOkResponse({ type: DeleteProjectResponseDto, description: 'Project deleted successfully.' })
 	@ApiBadRequestResponse({ description: 'Validation failed.' })
 	@ApiNotFoundResponse({ description: 'Project not found.' })
 	@ApiForbiddenResponse({ description: 'Project belongs to another user.' })
