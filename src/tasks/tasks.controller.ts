@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBadRequestResponse, ApiBody, ApiCreatedResponse, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -7,6 +7,7 @@ import { CreateTaskResponseDto } from './dto/create-task-response.dto';
 import { TaskQueryDto } from './dto/task-query.dto';
 import { TaskResponseDto } from './dto/task-response.dto';
 import { TasksPaginationResponseDto } from './dto/tasks-pagination.dto';
+import { UpdateTaskDto } from './dto/update-task.dto';
 import { TasksService } from './tasks.service';
 
 @ApiTags('tasks')
@@ -56,5 +57,17 @@ export class TasksController {
 	@ApiForbiddenResponse({ description: 'Task belongs to another user.' })
 	getTask(@CurrentUser('sub') userId: string, @Param('id') id: string) {
 		return this.tasksService.findOne(userId, id);
+	}
+
+	@Put('tasks/:id')
+	@ApiOperation({ summary: 'Update task', description: 'Updates a task owned by the authenticated user.' })
+	@ApiParam({ name: 'id', example: 'uuid' })
+	@ApiBody({ type: UpdateTaskDto })
+	@ApiOkResponse({ type: TaskResponseDto, description: 'Task updated successfully.' })
+	@ApiBadRequestResponse({ description: 'Validation failed.' })
+	@ApiNotFoundResponse({ description: 'Task not found.' })
+	@ApiForbiddenResponse({ description: 'Task belongs to another user.' })
+	update(@CurrentUser('sub') userId: string, @Param('id') id: string, @Body() dto: UpdateTaskDto) {
+		return this.tasksService.update(userId, id, dto);
 	}
 }

@@ -4,13 +4,14 @@ import { TasksService } from './tasks.service';
 
 describe('TasksController', () => {
 	let controller: TasksController;
-	let tasksService: jest.Mocked<Pick<TasksService, 'create' | 'findByProject' | 'findOne'>>;
+	let tasksService: jest.Mocked<Pick<TasksService, 'create' | 'findByProject' | 'findOne' | 'update'>>;
 
 	beforeEach(async () => {
 		tasksService = {
 			create: jest.fn(),
 			findByProject: jest.fn(),
 			findOne: jest.fn(),
+			update: jest.fn(),
 		};
 
 		const moduleRef = await Test.createTestingModule({
@@ -86,6 +87,35 @@ describe('TasksController', () => {
 			status: 'todo',
 			priority: 'high',
 			due_date: new Date('2026-08-01'),
+			project: { id: 'project-1', name: 'Backend Internship' },
+		});
+	});
+
+	it('delegates task update to service', async () => {
+		tasksService.update.mockResolvedValue({
+			id: 'task-1',
+			title: 'JWT Finished',
+			description: 'Use Passport JWT',
+			status: 'done',
+			priority: 'medium',
+			due_date: new Date('2026-08-10'),
+			project: { id: 'project-1', name: 'Backend Internship' },
+		});
+
+		await expect(
+			controller.update('user-1', 'task-1', {
+				title: 'JWT Finished',
+				status: 'done' as never,
+				priority: 'medium' as never,
+				due_date: new Date('2026-08-10'),
+			}),
+		).resolves.toEqual({
+			id: 'task-1',
+			title: 'JWT Finished',
+			description: 'Use Passport JWT',
+			status: 'done',
+			priority: 'medium',
+			due_date: new Date('2026-08-10'),
 			project: { id: 'project-1', name: 'Backend Internship' },
 		});
 	});

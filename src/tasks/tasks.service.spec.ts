@@ -1,4 +1,4 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma, TaskPriority, TaskStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProjectsService } from '../projects/projects.service';
@@ -9,23 +9,29 @@ describe('TasksService', () => {
 	let service: TasksService;
 	let prisma: {
 		project: { findUnique: jest.Mock };
-		task: { create: jest.Mock; count: jest.Mock; findMany: jest.Mock; findUnique: jest.Mock };
+		task: { create: jest.Mock; count: jest.Mock; findMany: jest.Mock; findUnique: jest.Mock; update: jest.Mock };
 		$transaction: jest.Mock;
 	};
 	let projectsService: {
 		findOne: jest.Mock;
 	};
+	let loggerWarnSpy: jest.SpyInstance;
 
 	beforeEach(() => {
 		prisma = {
 			project: { findUnique: jest.fn() },
-			task: { create: jest.fn(), count: jest.fn(), findMany: jest.fn(), findUnique: jest.fn() },
+			task: { create: jest.fn(), count: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
 			$transaction: jest.fn(),
 		};
 		projectsService = { findOne: jest.fn() };
+		loggerWarnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
 
 		service = new TasksService(prisma as unknown as PrismaService, projectsService as unknown as ProjectsService);
 		jest.clearAllMocks();
+	});
+
+	afterEach(() => {
+		loggerWarnSpy.mockRestore();
 	});
 
 	it('creates a task for the project owner', async () => {
@@ -146,5 +152,80 @@ describe('TasksService', () => {
 		});
 
 		await expect(service.findOne('user-1', 'task-1')).rejects.toBeInstanceOf(ForbiddenException);
+	});
+
+	it('updates a task for the owner', async () => {
+		prisma.task.findUnique.mockResolvedValue({
+			id: 'task-1',
+			title: 'Implement JWT',
+			description: 'Use Passport JWT',
+			status: TaskStatus.TODO,
+			priority: TaskPriority.HIGH,
+			dueDate: new Date('2026-08-01'),
+			deletedAt: null,
+			project: {
+				id: 'project-1',
+				name: 'Backend Internship',
+				userId: 'user-1',
+				deletedAt: null,
+			},
+		});
+		prisma.task.update.mockResolvedValue({
+			id: 'task-1',
+			title: 'JWT Finished',
+			description: 'Use Passport JWT',
+			status: TaskStatus.DONE,
+			priority: TaskPriority.MEDIUM,
+			dueDate: new Date('2026-08-10'),
+			project: { id: 'project-1', name: 'Backend Internship' },
+		});
+
+		await expect(
+			service.update('user-1', 'task-1', {
+				title: 'JWT Finished',
+				status: 'done' as never,
+				priority: 'medium' as never,
+				due_date: new Date('2026-08-10'),
+			}),
+		).resolves.toEqual({
+			id: 'task-1',
+			title: 'JWT Finished',
+			description: 'Use Passport JWT',
+			status: 'done',
+			priority: 'medium',
+			due_date: new Date('2026-08-10'),
+			project: { id: 'project-1', name: 'Backend Internship' },
+		});
+	});
+
+	it('logs a warning when moving from done back to todo', async () => {
+		prisma.task.findUnique.mockResolvedValue({
+			id: 'task-1',
+			title: 'Implement JWT',
+			description: 'Use Passport JWT',
+			status: TaskStatus.DONE,
+			priority: TaskPriority.HIGH,
+			dueDate: new Date('2026-08-01'),
+			deletedAt: null,
+			project: {
+				id: 'project-1',
+				name: 'Backend Internship',
+				userId: 'user-1',
+				deletedAt: null,
+			},
+		});
+		prisma.task.update.mockResolvedValue({
+			id: 'task-1',
+			title: 'Implement JWT',
+			description: 'Use Passport JWT',
+			status: TaskStatus.TODO,
+			priority: TaskPriority.HIGH,
+			dueDate: new Date('2026-08-01'),
+			project: { id: 'project-1', name: 'Backend Internship' },
+		});
+
+		await service.update('user-1', 'task-1', { status: 'todo' as never });
+
+		expect(loggerWarnSpy).toHaveBeenCalled();
 	});
 });
